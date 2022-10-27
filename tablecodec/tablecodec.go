@@ -98,6 +98,27 @@ func DecodeRecordKey(key kv.Key) (tableID int64, handle int64, err error) {
 	 *   5. understanding the coding rules is a prerequisite for implementing this function,
 	 *      you can learn it in the projection 1-2 course documentation.
 	 */
+	if len(key) != RecordRowKeyLen {
+		return 0, 0, errInvalidRecordKey.GenWithStack("wrong length!")
+	}
+	if !key.HasPrefix(tablePrefix) {
+		return 0, 0, errInvalidRecordKey.GenWithStack("No tablePrefix!")
+	}
+	encodedTableId := key[tablePrefixLength:TableSplitKeyLen]
+	_, tableID, err = codec.DecodeInt(encodedTableId)
+	if err != nil {
+		return 0, 0, err
+	}
+	remainKey := key[TableSplitKeyLen:]
+	if !remainKey.HasPrefix(recordPrefixSep) {
+		return 0, 0, errInvalidRecordKey.GenWithStack("No recordPrefixSep!")
+	}
+	encodedRowId := key[prefixLen:]
+	_, handle, err = codec.DecodeInt(encodedRowId)
+	if err != nil {
+		return 0, 0, err
+	}
+
 	return
 }
 
@@ -148,6 +169,24 @@ func DecodeIndexKeyPrefix(key kv.Key) (tableID int64, indexID int64, indexValues
 	 *   5. understanding the coding rules is a prerequisite for implementing this function,
 	 *      you can learn it in the projection 1-2 course documentation.
 	 */
+	if !key.HasPrefix(tablePrefix) {
+		return 0, 0, nil, errInvalidRecordKey.GenWithStack("No tablePrefix!")
+	}
+	encodedTableId := key[tablePrefixLength:TableSplitKeyLen]
+	_, tableID, err = codec.DecodeInt(encodedTableId)
+	if err != nil {
+		return 0, 0, nil, err
+	}
+	remainKey := key[TableSplitKeyLen:]
+	if !remainKey.HasPrefix(indexPrefixSep) {
+		return 0, 0, nil, errInvalidRecordKey.GenWithStack("No indexPrefixSep!")
+	}
+	encodedIndexId := key[prefixLen : prefixLen+idLen]
+	_, indexID, err = codec.DecodeInt(encodedIndexId)
+	if err != nil {
+		return 0, 0, nil, err
+	}
+	indexValues = key[prefixLen+idLen:]
 	return tableID, indexID, indexValues, nil
 }
 

@@ -871,6 +871,8 @@ import (
 	VariableAssignmentList	"set variable value list"
 	WhereClause		"WHERE clause"
 	WhereClauseOptional	"Optional WHERE clause"
+	JoinConditionOptional "Optional JOIN Condition"
+	JoinCondition	"JOIN Condition"
 	WithValidation		"with validation"
 	WithValidationOpt	"optional with validation"
 	Type			"Types"
@@ -3819,6 +3821,27 @@ JoinTable:
          * }
          *
 	 */
+|	TableRef "STRAIGHT_JOIN" TableRef
+	{
+		$$ = &ast.Join{Left: $1.(ast.ResultSetNode), Right: $3.(ast.ResultSetNode), Tp: ast.CrossJoin}
+	}
+|	TableRef "CROSS" "JOIN" TableRef
+	{
+		$$ = &ast.Join{Left: $1.(ast.ResultSetNode), Right: $4.(ast.ResultSetNode), Tp: ast.CrossJoin}
+	}
+|	TableRef JoinType OuterOpt "JOIN" TableRef JoinCondition
+	{
+		$$ = &ast.Join{Left: $1.(ast.ResultSetNode), Right: $5.(ast.ResultSetNode), Tp: $2.(ast.JoinType), On: &ast.OnCondition{Expr: $6.(ast.ExprNode)}}
+	}
+|	TableRef "NATURAL" CrossOpt TableRef
+	{
+		$$ = &ast.Join{Left: $1.(ast.ResultSetNode), Right: $4.(ast.ResultSetNode), Tp: ast.CrossJoin}
+	}
+|	TableRef "NATURAL" JoinType OuterOpt "JOIN" TableRef
+	{
+		$$ = &ast.Join{Left: $1.(ast.ResultSetNode), Right: $6.(ast.ResultSetNode), Tp: $3.(ast.JoinType)}
+	}
+
 
 JoinType:
 	"LEFT"
@@ -3838,6 +3861,20 @@ CrossOpt:
 	"JOIN"
 |	"INNER" "JOIN"
 
+JoinCondition:
+	"ON" Expression
+	{
+		$$ = $2
+	}
+
+JoinConditionOptional:
+	{
+		$$ = nil
+	}
+|	JoinCondition
+	{
+		$$ = $1
+	}
 
 LimitClause:
 	{
